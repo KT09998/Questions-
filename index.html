@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>腦筋急轉彎 - 終極慶祝版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f1f5f9; touch-action: manipulation; overflow: hidden; }
+        .feedback-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 15rem; opacity: 0; pointer-events: none; z-index: 50; }
+        .show-feedback { animation: popFeedback 0.8s ease-out forwards; }
+        @keyframes popFeedback {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+        .firework-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; display: none; background: rgba(0,0,0,0.1); }
+        .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
+        .toggle-checkbox:checked + .toggle-label > .toggle-circle { transform: translateX(100%); }
+        .toggle-label { width: 40px; height: 20px; }
+        .toggle-circle { top: 2px; left: 2px; width: 16px; height: 16px; }
+    </style>
+</head>
+<body class="h-screen flex items-center justify-center p-4">
+
+    <div id="firework-canvas" class="firework-overlay"></div>
+
+    <div class="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[640px] flex flex-col relative border border-slate-200 z-10">
+        
+        <!-- 答題反饋 -->
+        <div id="correct-mark" class="feedback-icon text-green-500">⭕</div>
+        <div id="wrong-mark" class="feedback-icon text-red-500">❌</div>
+
+        <div class="w-full h-2 bg-slate-100">
+            <div id="progress-bar" class="h-full bg-blue-500 transition-all duration-500 w-0"></div>
+        </div>
+
+        <!-- 開始畫面 -->
+        <div id="start-screen" class="flex-1 flex flex-col items-center justify-center p-10 text-center space-y-8">
+            <div class="text-8xl animate-bounce">🎊</div>
+            <div>
+                <h1 class="text-4xl font-black text-slate-800">腦筋急轉彎</h1>
+                <p class="text-slate-500 mt-2 font-bold italic">100題挑戰 · 豪華音效版</p>
+                <p id="pool-info" class="text-xs text-blue-500 mt-4 font-bold bg-blue-50 px-3 py-1 rounded-full inline-block">正在初始化題庫...</p>
+            </div>
+            <button onclick="startGame()" class="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-2xl font-black shadow-xl transition-all active:scale-95">
+                開始挑戰
+            </button>
+        </div>
+
+        <!-- 遊戲主畫面 -->
+        <div id="game-screen" class="hidden flex-1 flex flex-col p-6 relative">
+            <div class="flex justify-between items-start mb-4">
+                <div class="space-y-1">
+                    <span id="question-counter" class="text-xs font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">Question 1/10</span>
+                    <div class="text-xl font-black text-slate-700">得分: <span id="score-display" class="text-blue-600">0</span></div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-2 shadow-sm text-[10px] font-black text-slate-400">
+                    <div class="flex items-center justify-between min-w-[85px]">
+                        <span>唸題目</span>
+                        <input type="checkbox" id="toggle-q" class="toggle-checkbox hidden" checked>
+                        <label for="toggle-q" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer relative transition-colors">
+                            <span class="toggle-circle absolute block bg-white rounded-full shadow transition-transform"></span>
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>唸選項</span>
+                        <input type="checkbox" id="toggle-a" class="toggle-checkbox hidden" checked>
+                        <label for="toggle-a" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer relative transition-colors">
+                            <span class="toggle-circle absolute block bg-white rounded-full shadow transition-transform"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col items-center justify-center mb-6">
+                <button onclick="replayCurrentSequence()" class="mb-6 w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-inner">
+                    <i class="fas fa-volume-high text-2xl"></i>
+                </button>
+                <h2 id="question-text" class="text-2xl font-black text-slate-800 text-center leading-snug px-4">載入中...</h2>
+            </div>
+
+            <div id="options-container" class="grid grid-cols-1 gap-3 mb-4"></div>
+            <div class="h-4"></div>
+        </div>
+
+        <!-- 結算畫面 -->
+        <div id="result-screen" class="hidden flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6 overflow-y-auto">
+            <div id="result-emoji" class="text-8xl mb-2">🏅</div>
+            <h2 class="text-3xl font-black text-slate-800">輪次結束</h2>
+            <div class="bg-blue-50 rounded-3xl p-8 w-full border border-blue-100 relative overflow-hidden">
+                <p id="final-score" class="text-7xl font-black text-blue-600 relative z-10">0</p>
+                <p class="text-blue-400 font-black mt-2 tracking-widest relative z-10">TOTAL SCORE</p>
+            </div>
+            <div class="space-y-1">
+                <p id="result-comment" class="text-xl font-black text-slate-700"></p>
+                <p id="remaining-info" class="text-sm font-bold text-slate-400"></p>
+            </div>
+            <button id="next-btn" onclick="restartGame()" class="w-full py-5 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl text-xl font-bold shadow-lg transition-transform active:scale-95">
+                繼續下一輪
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 100 題完整庫 (部分展示，已根據前次對話補齊)
+        const fullLibrary = [
+            { q: "年年有餘，為什麼還是存不到錢？", a: "因為年年都被炒魷魚", wrong: ["因為錢都拿去買魚了", "因為物價漲太快"] },
+            { q: "為什麼邊緣人不剪頭髮？", a: "因為沒人要理他", wrong: ["因為剪頭髮很貴", "因為想變長髮公主"] },
+            { q: "總統府前面那條路是什麼路？", a: "柏油路", wrong: ["凱達格蘭大道", "重慶南路"] },
+            { q: "麒麟飛到北極會變成什麼？", a: "冰淇淋", wrong: ["冷凍麒麟", "北極麒麟"] },
+            { q: "哪種食物最誠實？", a: "披薩", wrong: ["誠實豆沙包", "老實雞"] },
+            { q: "哪兩個英文字母放在一起會爆炸？", a: "OK繃", wrong: ["TNT", "AB膠"] },
+            { q: "歷史上哪個人物跑最快？", a: "曹操", wrong: ["劉翔", "閃電俠"] },
+            { q: "什麼東西遠看像水桶，近看卻破一個洞？", a: "破水桶", wrong: ["甜甜圈", "救生圈"] },
+            { q: "為什麼暖暖包有一堆人在用？", a: "因為它有鐵粉", wrong: ["因為天氣冷", "因為便宜"] },
+            { q: "耶穌是哪一國人？", a: "天國", wrong: ["以色列人", "美國人"] },
+            { q: "哪種花夏天是冰冷的，冬天是溫熱的？", a: "豆花", wrong: ["冰花", "雪花"] },
+            { q: "皮卡丘站起來會變成什麼？", a: "皮卡兵", wrong: ["雷丘", "皮卡丘站長"] },
+            { q: "什麼情況下人會有四隻眼睛？", a: "兩個人的時候", wrong: ["戴眼鏡時", "看3D電影"] },
+            { q: "為什麼美人魚最專情？", a: "因為她不會劈腿", wrong: ["因為她愛王子", "因為海很大"] },
+            { q: "誰是最失敗的人？", a: "蜘蛛人", wrong: ["考零分的人", "破產的人"] },
+            { q: "有一隻雞為什麼很喜歡吹風？", a: "因為它是吹風機", wrong: ["因為熱", "因為想飛"] },
+            { q: "為什麼蠶寶寶很有錢？", a: "因為它會節儉(結繭)", wrong: ["它吃桑葉", "它有絲綢"] },
+            { q: "為什麼警察都不是卷髮？", a: "因為是執法(直髮)人員", wrong: ["規定不能燙", "天生的"] },
+            { q: "打電話給烏龜，猜一種蔬菜？", a: "苦瓜", wrong: ["地瓜", "絲瓜"] },
+            { q: "綠豆哪裡人？", a: "嘉義人", wrong: ["台東人", "綠島人"] },
+            { q: "壞事一定要在中午做，為什麼？", a: "因為早晚會有報應", wrong: ["太陽比較大", "沒人看見"] },
+            { q: "什麼東西會越擦越黑？", a: "黑板", wrong: ["抹布", "皮鞋"] },
+            { q: "每個人睡前一定不會忘記做什麼？", a: "閉上眼睛", wrong: ["刷牙", "設鬧鐘"] },
+            { q: "台灣哪個湖最大？", a: "澎湖", wrong: ["日月潭", "澄清湖"] },
+            { q: "芥末生日哪一天？", a: "世界末日", wrong: ["10月10日", "5月5日"] },
+            { q: "地震時哪裡最安全？", a: "飛機上", wrong: ["桌子下", "公園裡"] },
+            { q: "為什麼煙火不會打到星星？", a: "因為星星會閃", wrong: ["星星太高", "煙火不夠力"] },
+            { q: "汽車轉彎時哪個輪胎不會動？", a: "備胎", wrong: ["左前輪", "後輪"] },
+            { q: "大樹跟小樹差在哪裡？", a: "插在土裡", wrong: ["身高", "年齡"] },
+            { q: "鳳梨和西瓜打頭，哪個比較痛？", a: "頭比較痛", wrong: ["鳳梨", "西瓜"] },
+            { q: "第十一本書是什麼書？", a: "不可思議", wrong: ["辭典", "百科全書"] },
+            { q: "兩碗泡麵都被偷了，猜成語？", a: "面面俱到", wrong: ["飢腸轆轆", "一無所有"] },
+            { q: "小孩子跌倒，猜成語？", a: "馬馬虎虎", wrong: ["四腳朝天", "欲哭無淚"] },
+            { q: "什麼書書店買不到？", a: "秘書", wrong: ["禁書", "電子書"] },
+            { q: "什麼水放口袋不會濕？", a: "薪水", wrong: ["汗水", "口水"] },
+            { q: "為什麼宋朝無法網拍？", a: "因為太多契丹人", wrong: ["沒電腦", "沒手機"] },
+            { q: "草跟蛋誰比較高？", a: "蛋(蛋糕)", wrong: ["草", "一樣高"] },
+            { q: "什麼國家不用發電？", a: "緬甸(免電)", wrong: ["瑞典", "冰島"] },
+            { q: "為什麼狐狸常跌倒？", a: "因為腳滑(狡猾)", wrong: ["腿短", "跑太快"] },
+            { q: "超人保護地球，誰保護城市？", a: "螢幕(保護程式)", wrong: ["蝙蝠俠", "鋼鐵人"] },
+            { q: "糖果是公的還是母的？", a: "母的(會生螞蟻)", wrong: ["公的", "中性"] },
+            { q: "氧氣和二氧化碳誰比較美？", a: "氧氣(自然就是美)", wrong: ["二氧化碳", "都醜"] },
+            { q: "鹿跟車誰會贏？", a: "鹿(露營車)", wrong: ["車", "平手"] },
+            { q: "哪位公主交通工具不怕刮？", a: "灰姑娘", wrong: ["白雪公主", "睡美人"] },
+            { q: "真正的豬喝什麼？", a: "珍珠奶茶", wrong: ["白開水", "餿水"] },
+            { q: "瓶蓋打不開找誰？", a: "孔雀(開屏)", wrong: ["大力士", "管理員"] },
+            { q: "鴨子哪裡最瘦？", a: "嘴巴(鴨嘴獸)", wrong: ["腳掌", "翅膀"] },
+            { q: "蚊子不叮哪種動物？", a: "狗(不叮狗)", wrong: ["貓", "兔子"] },
+            { q: "哪條街不下雨？", a: "芝麻街", wrong: ["華爾街", "商店街"] },
+            { q: "一隻狼掉到冰水？", a: "檳榔", wrong: ["落湯狼", "死狼"] },
+            { q: "如何使麻雀安靜？", a: "壓它(鴉雀無聲)", wrong: ["餵米", "關籠子"] },
+            { q: "地瓜笑了？", a: "地瓜球", wrong: ["烤地瓜", "地瓜湯"] },
+            { q: "電腦的媽媽？", a: "螢幕(母體)", wrong: ["主機板", "鍵盤"] },
+            { q: "什麼島最熱？", a: "透中島", wrong: ["火燒島", "夏威夷"] },
+            { q: "為什麼天冷摸肩膀？", a: "它是Shoulder", wrong: ["好摸", "生火"] },
+            { q: "死掉的腎臟？", a: "西遊記(死腰子)", wrong: ["紅樓夢", "三國演義"] },
+            { q: "最喜歡坐飛機的人是誰？", a: "非機場人員", wrong: ["機師", "空姐"] },
+            { q: "哪種蔬菜最好客？", a: "南瓜(來過)", wrong: ["白菜", "南瓜(客氣)"] },
+            { q: "什麼車子最討厭？", a: "公車(公憤)", wrong: ["計程車", "救護車"] },
+            { q: "哪一科最認真？", a: "外科(不累科)", wrong: ["牙科", "眼科"] },
+            { q: "什麼米不能吃？", a: "蝦米", wrong: ["白米", "糯米"] },
+            { q: "什麼筆不能寫？", a: "電筆", wrong: ["原子筆", "鉛筆"] },
+            { q: "哪種人不能去加油站？", a: "油人(友人)", wrong: ["老人", "病人"] },
+            { q: "為什麼企鵝只住南極？", a: "因為北極有熊", wrong: ["因為怕熱", "因為路太遠"] },
+            { q: "什麼狗不咬人？", a: "熱狗", wrong: ["玩具狗", "懶惰狗"] },
+            { q: "哪種雞跑最快？", a: "火雞", wrong: ["土雞", "肯德基"] },
+            { q: "哪種花最懶惰？", a: "蘭花", wrong: ["蓮花", "玫瑰"] },
+            { q: "什麼貓最愛騙人？", a: "加菲貓(假非)", wrong: ["波斯貓", "叮噹貓"] },
+            { q: "哪種水果最會保佑人？", a: "蘋果", wrong: ["西瓜", "香蕉"] },
+            { q: "什麼人一年只工作一天？", a: "聖誕老人", wrong: ["懶人", "有錢人"] },
+            { q: "哪種球最累？", a: "足球(足夠累)", wrong: ["籃球", "網球"] },
+            { q: "什麼路不能走？", a: "網路", wrong: ["柏油路", "大馬路"] },
+            { q: "哪種水果最愛生氣？", a: "榴槤", wrong: ["梨子", "橘子"] },
+            { q: "什麼人最愛吹牛？", a: "養牛的人", wrong: ["騙子", "商人"] },
+            { q: "哪種衣服最貴？", a: "皇帝的新衣", wrong: ["名牌服飾", "婚紗"] },
+            { q: "什麼山不能爬？", a: "冰山", wrong: ["玉山", "火山"] },
+            { q: "哪種水最甜？", a: "糖水", wrong: ["山泉水", "自來水"] },
+            { q: "什麼人最愛大叫？", a: "啞巴(不會說話)", wrong: ["歌星", "瘋子"] },
+            { q: "哪種紙最不能寫字？", a: "衛生紙", wrong: ["報紙", "宣紙"] },
+            { q: "什麼人最愛走路？", a: "步兵", wrong: ["慢跑者", "導遊"] },
+            { q: "哪種魚最懶惰？", a: "鯊魚(殺時間)", wrong: ["金魚", "鯉魚"] },
+            { q: "什麼地方不能拍照？", a: "夢裡", wrong: ["洗手間", "電影院"] },
+            { q: "哪種燈最不亮？", a: "紅綠燈", wrong: ["日光燈", "手電筒"] },
+            { q: "什麼人最愛大笑？", a: "愛笑的人", wrong: ["小丑", "演員"] },
+            { q: "哪種花最愛跳舞？", a: "跳舞蘭", wrong: ["菊花", "牽牛花"] },
+            { q: "什麼水果最愛唱歌？", a: "芒果", wrong: ["水蜜桃", "葡萄"] },
+            { q: "哪種人最愛睡覺？", a: "睡美人", wrong: ["嬰兒", "懶漢"] },
+            { q: "什麼地方最愛下雨？", a: "雨都", wrong: ["沙漠", "火星"] },
+            { q: "哪種人最愛喝水？", a: "口渴的人", wrong: ["魚", "大象"] },
+            { q: "什麼人最愛吃肉？", a: "食肉動物", wrong: ["廚師", "獵人"] },
+            { q: "哪種水果最愛說謊？", a: "香蕉", wrong: ["木瓜", "楊桃"] },
+            { q: "什麼人最愛發呆？", a: "發呆的人", wrong: ["學生", "老人"] },
+            { q: "哪種花最愛說話？", a: "喇叭花", wrong: ["向日葵", "百合"] },
+            { q: "什麼人最愛大叫？", a: "嚇到的人", wrong: ["老師", "隊長"] },
+            { q: "哪種紙最貴？", a: "鈔票", wrong: ["砂紙", "複寫紙"] },
+            { q: "什麼人最愛走路？", a: "趕路的人", wrong: ["郵差", "士兵"] },
+            { q: "哪種水果最愛玩？", a: "草莓", wrong: ["荔枝", "龍眼"] },
+            { q: "什麼人最愛看書？", a: "書蟲", wrong: ["博士", "管理員"] },
+            { q: "哪種花最漂亮？", a: "心花", wrong: ["牡丹", "鬱金香"] },
+            { q: "什麼人最愛說冷笑話？", a: "你", wrong: ["冰塊", "企鵝"] }
+        ];
+
+        let availableIndices = [];
+        let gameQuestions = [];
+        let currentIdx = 0;
+        let score = 0;
+        let isAnswering = false;
+        let voice = null;
+        let audioCtx = null;
+
+        function initPool() {
+            if (availableIndices.length < 10) availableIndices = Array.from(fullLibrary.keys());
+            document.getElementById('pool-info').innerText = `題庫剩餘: ${availableIndices.length} 題`;
+        }
+
+        function initSpeech() {
+            const setV = () => {
+                const vs = window.speechSynthesis.getVoices();
+                voice = vs.find(v => v.lang.includes('zh-TW')) || vs.find(v => v.lang.includes('zh'));
+            };
+            setV();
+            window.speechSynthesis.onvoiceschanged = setV;
+        }
+
+        function createSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const master = audioCtx.createGain();
+            master.connect(audioCtx.destination);
+
+            if (type === 'correct') {
+                const osc = audioCtx.createOscillator();
+                osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+                master.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                osc.connect(master); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'wrong') {
+                const osc = audioCtx.createOscillator();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 0.2);
+                master.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.connect(master); osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            } else if (type === 'cheer') { // 歡呼 + 煙火
+                for(let i=0; i<15; i++) {
+                    const osc = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400 + Math.random()*600, audioCtx.currentTime + i*0.1);
+                    g.gain.setValueAtTime(0, audioCtx.currentTime + i*0.1);
+                    g.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + i*0.1 + 0.05);
+                    g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + i*0.1 + 0.3);
+                    osc.connect(g); g.connect(master);
+                    osc.start(audioCtx.currentTime + i*0.1); osc.stop(audioCtx.currentTime + i*0.1 + 0.3);
+                }
+            } else if (type === 'clap-heavy') { // 大聲拍手
+                for(let i=0; i<30; i++) {
+                    const noise = audioCtx.createBufferSource();
+                    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for(let j=0; j<data.length; j++) data[j] = Math.random()*2 - 1;
+                    noise.buffer = buffer;
+                    const g = audioCtx.createGain();
+                    g.gain.setValueAtTime(0.1, audioCtx.currentTime + Math.random()*1.5);
+                    g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + Math.random()*1.5 + 0.1);
+                    noise.connect(g); g.connect(master);
+                    noise.start(audioCtx.currentTime + Math.random()*1.5);
+                }
+            } else if (type === 'clap-light') { // 小聲拍手
+                for(let i=0; i<10; i++) {
+                    const noise = audioCtx.createBufferSource();
+                    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for(let j=0; j<data.length; j++) data[j] = Math.random()*2 - 1;
+                    noise.buffer = buffer;
+                    const g = audioCtx.createGain();
+                    g.gain.setValueAtTime(0.05, audioCtx.currentTime + Math.random()*1);
+                    g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + Math.random()*1 + 0.05);
+                    noise.connect(g); g.connect(master);
+                    noise.start(audioCtx.currentTime + Math.random()*1);
+                }
+            } else if (type === 'tick') { // 滴答聲
+                const osc = audioCtx.createOscillator();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                master.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                master.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.02);
+                osc.connect(master); osc.start(); osc.stop(audioCtx.currentTime + 0.02);
+            } else if (type === 'sigh') { // 呼一聲
+                const noise = audioCtx.createBufferSource();
+                const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.5, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for(let j=0; j<data.length; j++) data[j] = Math.random()*2 - 1;
+                noise.buffer = buffer;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(2000, audioCtx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
+                const g = audioCtx.createGain();
+                g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                noise.connect(filter); filter.connect(g); g.connect(master);
+                noise.start();
+            } else if (type === 'fail') { // 失敗音
+                const osc = audioCtx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+                master.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                master.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                osc.connect(master); osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            }
+        }
+
+        function startGame() {
+            const indices = shuffle([...availableIndices]).slice(0, 10);
+            gameQuestions = indices.map(i => fullLibrary[i]);
+            availableIndices = availableIndices.filter(i => !indices.includes(i));
+            currentIdx = 0; score = 0;
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            isAnswering = true;
+            window.speechSynthesis.cancel();
+            const q = gameQuestions[currentIdx];
+            document.getElementById('progress-bar').style.width = `${(currentIdx / 10) * 100}%`;
+            document.getElementById('question-counter').innerText = `Question ${currentIdx + 1}/10`;
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('question-text').innerText = q.q;
+
+            const opts = shuffle([{t: q.a, c:true}, {t: q.wrong[0], c:false}, {t: q.wrong[1], c:false}]);
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            opts.forEach((o, i) => {
+                const btn = document.createElement('button');
+                btn.className = "option-btn w-full p-4 text-left bg-white border-2 border-slate-200 rounded-2xl text-slate-700 font-bold flex items-center shadow-sm";
+                btn.innerHTML = `<span class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mr-4 text-xs font-black text-slate-400">${i+1}</span>${o.t}`;
+                btn.onclick = () => check(btn, o.c);
+                container.appendChild(btn);
+            });
+            setTimeout(playSequence, 500);
+        }
+
+        function playSequence() {
+            if (!isAnswering) return;
+            const q = gameQuestions[currentIdx];
+            const queue = [];
+            if (document.getElementById('toggle-q').checked) queue.push(`第${currentIdx+1}題。${q.q}`);
+            if (document.getElementById('toggle-a').checked) {
+                document.querySelectorAll('.option-btn').forEach((b, i) => queue.push(`選項${i+1}：${b.innerText.replace(/^\d+/, '')}`));
+            }
+            let i = 0;
+            const speakNext = () => {
+                if (i >= queue.length || !isAnswering) return;
+                const u = new SpeechSynthesisUtterance(queue[i++]);
+                u.lang = 'zh-TW'; u.voice = voice; u.rate = 1.1;
+                u.onend = () => setTimeout(speakNext, 200);
+                window.speechSynthesis.speak(u);
+            };
+            speakNext();
+        }
+
+        function replayCurrentSequence() { window.speechSynthesis.cancel(); playSequence(); }
+
+        function check(btn, isCorrect) {
+            if (!isAnswering) return;
+            isAnswering = false;
+            window.speechSynthesis.cancel();
+            const mark = isCorrect ? 'correct-mark' : 'wrong-mark';
+            document.getElementById(mark).classList.add('show-feedback');
+            setTimeout(() => document.getElementById(mark).classList.remove('show-feedback'), 800);
+            createSound(isCorrect ? 'correct' : 'wrong');
+
+            if (isCorrect) {
+                score += 10;
+                btn.classList.replace('bg-white', 'bg-green-500');
+                btn.classList.add('text-white', 'border-green-600');
+            } else {
+                btn.classList.replace('bg-white', 'bg-red-500');
+                btn.classList.add('text-white', 'border-red-600');
+                document.querySelectorAll('.option-btn').forEach(b => {
+                    if (b.innerText.includes(gameQuestions[currentIdx].a)) b.classList.add('border-green-500', 'bg-green-50');
+                });
+            }
+            setTimeout(() => {
+                currentIdx++;
+                if (currentIdx < 10) loadQuestion(); else end();
+            }, 1500);
+        }
+
+        function end() {
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('remaining-info').innerText = `題庫剩餘 ${availableIndices.length} 題未挑戰`;
+            
+            let comment = "";
+            let emoji = "🏅";
+            
+            if (score === 100) {
+                comment = "大滿貫！你真是絕世聰明！";
+                emoji = "👑";
+                celebrate100();
+            } else if (score >= 90) {
+                comment = "太強了！差點就滿分！";
+                emoji = "🔥";
+                createSound('clap-heavy');
+            } else if (score >= 80) {
+                comment = "你真的好棒棒！";
+                emoji = "✨";
+                createSound('clap-light');
+            } else if (score >= 70) {
+                comment = "再加油吧，下次會更好！";
+                emoji = "💪";
+                createSound('tick');
+            } else if (score >= 60) {
+                comment = "還好有及格，好險！";
+                emoji = "😅";
+                createSound('sigh');
+            } else if (score >= 40) {
+                comment = "哎呀，差一點點就及格了！";
+                emoji = "🤔";
+                createSound('fail');
+            } else if (score >= 20) {
+                comment = "看來你需要多聽點冷笑話！";
+                emoji = "❄️";
+                createSound('fail');
+            } else {
+                comment = "這是...隱藏版實力嗎？";
+                emoji = "👻";
+                createSound('fail');
+            }
+
+            document.getElementById('result-comment').innerText = comment;
+            document.getElementById('result-emoji').innerText = emoji;
+            
+            // 語音評分
+            setTimeout(() => {
+                const u = new SpeechSynthesisUtterance(comment);
+                u.lang = 'zh-TW'; u.voice = voice;
+                window.speechSynthesis.speak(u);
+            }, 500);
+
+            if (availableIndices.length < 10) document.getElementById('next-btn').innerText = "最後衝刺 / 重置題庫";
+            initPool();
+        }
+
+        function celebrate100() {
+            createSound('cheer');
+            // 撒花與亮片
+            const count = 200;
+            const defaults = { origin: { y: 0.7 } };
+            function fire(particleRatio, opts) {
+                confetti({ ...defaults, ...opts, particleCount: Math.floor(count * particleRatio) });
+            }
+            fire(0.25, { spread: 26, startVelocity: 55 });
+            fire(0.2, { spread: 60 });
+            fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+            fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+            fire(0.1, { spread: 120, startVelocity: 45 });
+
+            // 模擬煙火
+            const overlay = document.getElementById('firework-canvas');
+            overlay.style.display = 'block';
+            let flashes = 0;
+            const interval = setInterval(() => {
+                overlay.style.backgroundColor = `rgba(${Math.random()*255}, ${Math.random()*255}, ${Math.random()*255}, 0.2)`;
+                setTimeout(() => overlay.style.backgroundColor = 'transparent', 50);
+                flashes++;
+                if(flashes > 10) { clearInterval(interval); overlay.style.display = 'none'; }
+            }, 300);
+        }
+
+        function restartGame() { startGame(); }
+        function shuffle(arr) { return arr.sort(() => Math.random() - 0.5); }
+        window.onload = () => { initSpeech(); initPool(); };
+    </script>
+</body>
+</html>
+
