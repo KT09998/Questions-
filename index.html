@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>腦筋急轉彎 - 終極慶祝版</title>
+    <title>腦筋急轉彎 - 自訂語音版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -22,13 +22,14 @@
         .toggle-checkbox:checked + .toggle-label > .toggle-circle { transform: translateX(100%); }
         .toggle-label { width: 40px; height: 20px; }
         .toggle-circle { top: 2px; left: 2px; width: 16px; height: 16px; }
+        input[type="range"] { accent-color: #3b82f6; }
     </style>
 </head>
 <body class="h-screen flex items-center justify-center p-4">
 
     <div id="firework-canvas" class="firework-overlay"></div>
 
-    <div class="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[640px] flex flex-col relative border border-slate-200 z-10">
+    <div class="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[660px] flex flex-col relative border border-slate-200 z-10">
         
         <!-- 答題反饋 -->
         <div id="correct-mark" class="feedback-icon text-green-500">⭕</div>
@@ -39,74 +40,98 @@
         </div>
 
         <!-- 開始畫面 -->
-        <div id="start-screen" class="flex-1 flex flex-col items-center justify-center p-10 text-center space-y-8">
-            <div class="text-8xl animate-bounce">🎊</div>
+        <div id="start-screen" class="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
+            <div class="text-7xl animate-bounce">🎙️</div>
             <div>
-                <h1 class="text-4xl font-black text-slate-800">腦筋急轉彎</h1>
-                <p class="text-slate-500 mt-2 font-bold italic">100題挑戰 · 豪華音效版</p>
-                <p id="pool-info" class="text-xs text-blue-500 mt-4 font-bold bg-blue-50 px-3 py-1 rounded-full inline-block">正在初始化題庫...</p>
+                <h1 class="text-3xl font-black text-slate-800">腦筋急轉彎</h1>
+                <p class="text-slate-500 font-bold">100題庫 · 語音客製版</p>
             </div>
-            <button onclick="startGame()" class="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-2xl font-black shadow-xl transition-all active:scale-95">
+            
+            <!-- 語音設定區 -->
+            <div class="w-full bg-slate-50 rounded-2xl p-4 space-y-3 border border-slate-100 text-left">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest"><i class="fas fa-cog mr-1"></i> 語音偏好設定</p>
+                
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">選擇聲音</label>
+                    <select id="voice-select" class="w-full text-sm p-2 rounded-lg border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 outline-none"></select>
+                </div>
+
+                <div class="flex space-x-4">
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-slate-600 block mb-1">音調 (Pitch)</label>
+                        <input type="range" id="pitch-range" min="0.5" max="2" step="0.1" value="1" class="w-full">
+                    </div>
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-slate-600 block mb-1">語速 (Rate)</label>
+                        <input type="range" id="rate-range" min="0.5" max="1.5" step="0.1" value="1.1" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xl font-black shadow-xl transition-all active:scale-95">
                 開始挑戰
             </button>
         </div>
 
         <!-- 遊戲主畫面 -->
         <div id="game-screen" class="hidden flex-1 flex flex-col p-6 relative">
+            <!-- 頂部資訊與快速切換 -->
             <div class="flex justify-between items-start mb-4">
                 <div class="space-y-1">
                     <span id="question-counter" class="text-xs font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">Question 1/10</span>
                     <div class="text-xl font-black text-slate-700">得分: <span id="score-display" class="text-blue-600">0</span></div>
                 </div>
-                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-2 shadow-sm text-[10px] font-black text-slate-400">
-                    <div class="flex items-center justify-between min-w-[85px]">
-                        <span>唸題目</span>
+                <div class="bg-slate-50 p-2 rounded-xl border border-slate-100 space-y-1 shadow-sm text-[9px] font-black text-slate-400">
+                    <div class="flex items-center justify-between min-w-[70px]">
+                        <span>讀題</span>
                         <input type="checkbox" id="toggle-q" class="toggle-checkbox hidden" checked>
-                        <label for="toggle-q" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer relative transition-colors">
-                            <span class="toggle-circle absolute block bg-white rounded-full shadow transition-transform"></span>
+                        <label for="toggle-q" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-300 cursor-pointer relative transition-colors">
+                            <span class="toggle-circle absolute block bg-white rounded-full shadow transition-transform" style="width:12px; height:12px;"></span>
                         </label>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span>唸選項</span>
+                        <span>讀項</span>
                         <input type="checkbox" id="toggle-a" class="toggle-checkbox hidden" checked>
-                        <label for="toggle-a" class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer relative transition-colors">
-                            <span class="toggle-circle absolute block bg-white rounded-full shadow transition-transform"></span>
+                        <label for="toggle-a" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-300 cursor-pointer relative transition-colors">
+                            <span class="toggle-circle absolute block bg-white rounded-full shadow transition-transform" style="width:12px; height:12px;"></span>
                         </label>
                     </div>
                 </div>
             </div>
 
             <div class="flex-1 flex flex-col items-center justify-center mb-6">
-                <button onclick="replayCurrentSequence()" class="mb-6 w-16 h-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-inner">
-                    <i class="fas fa-volume-high text-2xl"></i>
+                <button onclick="replayCurrentSequence()" class="mb-4 w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-inner hover:bg-blue-200 transition-colors">
+                    <i class="fas fa-volume-high text-xl"></i>
                 </button>
                 <h2 id="question-text" class="text-2xl font-black text-slate-800 text-center leading-snug px-4">載入中...</h2>
             </div>
 
-            <div id="options-container" class="grid grid-cols-1 gap-3 mb-4"></div>
-            <div class="h-4"></div>
+            <div id="options-container" class="grid grid-cols-1 gap-3 mb-2"></div>
         </div>
 
         <!-- 結算畫面 -->
-        <div id="result-screen" class="hidden flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6 overflow-y-auto">
+        <div id="result-screen" class="hidden flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
             <div id="result-emoji" class="text-8xl mb-2">🏅</div>
             <h2 class="text-3xl font-black text-slate-800">輪次結束</h2>
-            <div class="bg-blue-50 rounded-3xl p-8 w-full border border-blue-100 relative overflow-hidden">
-                <p id="final-score" class="text-7xl font-black text-blue-600 relative z-10">0</p>
-                <p class="text-blue-400 font-black mt-2 tracking-widest relative z-10">TOTAL SCORE</p>
+            <div class="bg-blue-50 rounded-3xl p-6 w-full border border-blue-100">
+                <p id="final-score" class="text-7xl font-black text-blue-600">0</p>
+                <p class="text-blue-400 font-black mt-1 tracking-widest">TOTAL SCORE</p>
             </div>
             <div class="space-y-1">
                 <p id="result-comment" class="text-xl font-black text-slate-700"></p>
                 <p id="remaining-info" class="text-sm font-bold text-slate-400"></p>
             </div>
-            <button id="next-btn" onclick="restartGame()" class="w-full py-5 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl text-xl font-bold shadow-lg transition-transform active:scale-95">
-                繼續下一輪
+            <button onclick="location.reload()" class="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-lg font-bold transition-all mb-2">
+                返回設定聲音
+            </button>
+            <button id="next-btn" onclick="restartGame()" class="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl text-xl font-bold shadow-lg transition-transform active:scale-95">
+                直接挑戰下一輪
             </button>
         </div>
     </div>
 
     <script>
-        // 100 題完整庫 (部分展示，已根據前次對話補齊)
+        // 題目庫 (略縮，保留100題邏輯)
         const fullLibrary = [
             { q: "年年有餘，為什麼還是存不到錢？", a: "因為年年都被炒魷魚", wrong: ["因為錢都拿去買魚了", "因為物價漲太快"] },
             { q: "為什麼邊緣人不剪頭髮？", a: "因為沒人要理他", wrong: ["因為剪頭髮很貴", "因為想變長髮公主"] },
@@ -124,8 +149,8 @@
             { q: "為什麼美人魚最專情？", a: "因為她不會劈腿", wrong: ["因為她愛王子", "因為海很大"] },
             { q: "誰是最失敗的人？", a: "蜘蛛人", wrong: ["考零分的人", "破產的人"] },
             { q: "有一隻雞為什麼很喜歡吹風？", a: "因為它是吹風機", wrong: ["因為熱", "因為想飛"] },
-            { q: "為什麼蠶寶寶很有錢？", a: "因為它會節儉(結繭)", wrong: ["它吃桑葉", "它有絲綢"] },
-            { q: "為什麼警察都不是卷髮？", a: "因為是執法(直髮)人員", wrong: ["規定不能燙", "天生的"] },
+            { q: "為什麼蠶寶寶很有錢？", a: "因為它會結繭", wrong: ["它吃桑葉", "它有絲綢"] },
+            { q: "為什麼警察都不是卷髮？", a: "因為是執法人員", wrong: ["規定不能燙", "天生的"] },
             { q: "打電話給烏龜，猜一種蔬菜？", a: "苦瓜", wrong: ["地瓜", "絲瓜"] },
             { q: "綠豆哪裡人？", a: "嘉義人", wrong: ["台東人", "綠島人"] },
             { q: "壞事一定要在中午做，為什麼？", a: "因為早晚會有報應", wrong: ["太陽比較大", "沒人看見"] },
@@ -146,49 +171,49 @@
             { q: "為什麼宋朝無法網拍？", a: "因為太多契丹人", wrong: ["沒電腦", "沒手機"] },
             { q: "草跟蛋誰比較高？", a: "蛋(蛋糕)", wrong: ["草", "一樣高"] },
             { q: "什麼國家不用發電？", a: "緬甸(免電)", wrong: ["瑞典", "冰島"] },
-            { q: "為什麼狐狸常跌倒？", a: "因為腳滑(狡猾)", wrong: ["腿短", "跑太快"] },
+            { q: "為什麼狐狸常跌倒？", a: "因為腳滑", wrong: ["腿短", "跑太快"] },
             { q: "超人保護地球，誰保護城市？", a: "螢幕(保護程式)", wrong: ["蝙蝠俠", "鋼鐵人"] },
-            { q: "糖果是公的還是母的？", a: "母的(會生螞蟻)", wrong: ["公的", "中性"] },
-            { q: "氧氣和二氧化碳誰比較美？", a: "氧氣(自然就是美)", wrong: ["二氧化碳", "都醜"] },
+            { q: "糖果是公的還是母的？", a: "母的", wrong: ["公的", "中性"] },
+            { q: "氧氣和二氧化碳誰比較美？", a: "氧氣", wrong: ["二氧化碳", "都醜"] },
             { q: "鹿跟車誰會贏？", a: "鹿(露營車)", wrong: ["車", "平手"] },
             { q: "哪位公主交通工具不怕刮？", a: "灰姑娘", wrong: ["白雪公主", "睡美人"] },
             { q: "真正的豬喝什麼？", a: "珍珠奶茶", wrong: ["白開水", "餿水"] },
-            { q: "瓶蓋打不開找誰？", a: "孔雀(開屏)", wrong: ["大力士", "管理員"] },
-            { q: "鴨子哪裡最瘦？", a: "嘴巴(鴨嘴獸)", wrong: ["腳掌", "翅膀"] },
+            { q: "瓶蓋打不開找誰？", a: "孔雀", wrong: ["大力士", "管理員"] },
+            { q: "鴨子哪裡最瘦？", a: "嘴巴", wrong: ["腳掌", "翅膀"] },
             { q: "蚊子不叮哪種動物？", a: "狗(不叮狗)", wrong: ["貓", "兔子"] },
             { q: "哪條街不下雨？", a: "芝麻街", wrong: ["華爾街", "商店街"] },
             { q: "一隻狼掉到冰水？", a: "檳榔", wrong: ["落湯狼", "死狼"] },
-            { q: "如何使麻雀安靜？", a: "壓它(鴉雀無聲)", wrong: ["餵米", "關籠子"] },
+            { q: "如何使麻雀安靜？", a: "壓它", wrong: ["餵米", "關籠子"] },
             { q: "地瓜笑了？", a: "地瓜球", wrong: ["烤地瓜", "地瓜湯"] },
-            { q: "電腦的媽媽？", a: "螢幕(母體)", wrong: ["主機板", "鍵盤"] },
+            { q: "電腦的媽媽？", a: "螢幕", wrong: ["主機板", "鍵盤"] },
             { q: "什麼島最熱？", a: "透中島", wrong: ["火燒島", "夏威夷"] },
             { q: "為什麼天冷摸肩膀？", a: "它是Shoulder", wrong: ["好摸", "生火"] },
-            { q: "死掉的腎臟？", a: "西遊記(死腰子)", wrong: ["紅樓夢", "三國演義"] },
+            { q: "死掉的腎臟？", a: "西遊記", wrong: ["紅樓夢", "三國演義"] },
             { q: "最喜歡坐飛機的人是誰？", a: "非機場人員", wrong: ["機師", "空姐"] },
-            { q: "哪種蔬菜最好客？", a: "南瓜(來過)", wrong: ["白菜", "南瓜(客氣)"] },
-            { q: "什麼車子最討厭？", a: "公車(公憤)", wrong: ["計程車", "救護車"] },
-            { q: "哪一科最認真？", a: "外科(不累科)", wrong: ["牙科", "眼科"] },
+            { q: "哪種蔬菜最好客？", a: "南瓜", wrong: ["白菜", "南瓜"] },
+            { q: "什麼車子最討厭？", a: "公車", wrong: ["計程車", "救護車"] },
+            { q: "哪一科最認真？", a: "外科", wrong: ["牙科", "眼科"] },
             { q: "什麼米不能吃？", a: "蝦米", wrong: ["白米", "糯米"] },
             { q: "什麼筆不能寫？", a: "電筆", wrong: ["原子筆", "鉛筆"] },
-            { q: "哪種人不能去加油站？", a: "油人(友人)", wrong: ["老人", "病人"] },
+            { q: "哪種人不能去加油站？", a: "油人", wrong: ["老人", "病人"] },
             { q: "為什麼企鵝只住南極？", a: "因為北極有熊", wrong: ["因為怕熱", "因為路太遠"] },
             { q: "什麼狗不咬人？", a: "熱狗", wrong: ["玩具狗", "懶惰狗"] },
             { q: "哪種雞跑最快？", a: "火雞", wrong: ["土雞", "肯德基"] },
             { q: "哪種花最懶惰？", a: "蘭花", wrong: ["蓮花", "玫瑰"] },
-            { q: "什麼貓最愛騙人？", a: "加菲貓(假非)", wrong: ["波斯貓", "叮噹貓"] },
+            { q: "什麼貓最愛騙人？", a: "加菲貓", wrong: ["波斯貓", "叮噹貓"] },
             { q: "哪種水果最會保佑人？", a: "蘋果", wrong: ["西瓜", "香蕉"] },
             { q: "什麼人一年只工作一天？", a: "聖誕老人", wrong: ["懶人", "有錢人"] },
-            { q: "哪種球最累？", a: "足球(足夠累)", wrong: ["籃球", "網球"] },
+            { q: "哪種球最累？", a: "足球", wrong: ["籃球", "網球"] },
             { q: "什麼路不能走？", a: "網路", wrong: ["柏油路", "大馬路"] },
             { q: "哪種水果最愛生氣？", a: "榴槤", wrong: ["梨子", "橘子"] },
             { q: "什麼人最愛吹牛？", a: "養牛的人", wrong: ["騙子", "商人"] },
             { q: "哪種衣服最貴？", a: "皇帝的新衣", wrong: ["名牌服飾", "婚紗"] },
             { q: "什麼山不能爬？", a: "冰山", wrong: ["玉山", "火山"] },
             { q: "哪種水最甜？", a: "糖水", wrong: ["山泉水", "自來水"] },
-            { q: "什麼人最愛大叫？", a: "啞巴(不會說話)", wrong: ["歌星", "瘋子"] },
+            { q: "什麼人最愛大叫？", a: "啞巴", wrong: ["歌星", "瘋子"] },
             { q: "哪種紙最不能寫字？", a: "衛生紙", wrong: ["報紙", "宣紙"] },
             { q: "什麼人最愛走路？", a: "步兵", wrong: ["慢跑者", "導遊"] },
-            { q: "哪種魚最懶惰？", a: "鯊魚(殺時間)", wrong: ["金魚", "鯉魚"] },
+            { q: "哪種魚最懶惰？", a: "鯊魚", wrong: ["金魚", "鯉魚"] },
             { q: "什麼地方不能拍照？", a: "夢裡", wrong: ["洗手間", "電影院"] },
             { q: "哪種燈最不亮？", a: "紅綠燈", wrong: ["日光燈", "手電筒"] },
             { q: "什麼人最愛大笑？", a: "愛笑的人", wrong: ["小丑", "演員"] },
@@ -215,21 +240,38 @@
         let currentIdx = 0;
         let score = 0;
         let isAnswering = false;
-        let voice = null;
+        let voices = [];
         let audioCtx = null;
 
-        function initPool() {
-            if (availableIndices.length < 10) availableIndices = Array.from(fullLibrary.keys());
-            document.getElementById('pool-info').innerText = `題庫剩餘: ${availableIndices.length} 題`;
+        function initSpeech() {
+            const voiceSelect = document.getElementById('voice-select');
+            const loadVoices = () => {
+                voices = window.speechSynthesis.getVoices();
+                voiceSelect.innerHTML = '';
+                voices.forEach((v, i) => {
+                    if (v.lang.includes('zh') || v.lang.includes('en')) {
+                        const opt = document.createElement('option');
+                        opt.value = i;
+                        opt.textContent = `${v.name} (${v.lang})`;
+                        if (v.lang === 'zh-TW') opt.selected = true;
+                        voiceSelect.appendChild(opt);
+                    }
+                });
+            };
+            loadVoices();
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = loadVoices;
+            }
         }
 
-        function initSpeech() {
-            const setV = () => {
-                const vs = window.speechSynthesis.getVoices();
-                voice = vs.find(v => v.lang.includes('zh-TW')) || vs.find(v => v.lang.includes('zh'));
-            };
-            setV();
-            window.speechSynthesis.onvoiceschanged = setV;
+        function createUtterance(text) {
+            const u = new SpeechSynthesisUtterance(text);
+            const selectedVoiceIndex = document.getElementById('voice-select').value;
+            u.voice = voices[selectedVoiceIndex];
+            u.pitch = parseFloat(document.getElementById('pitch-range').value);
+            u.rate = parseFloat(document.getElementById('rate-range').value);
+            u.lang = u.voice ? u.voice.lang : 'zh-TW';
+            return u;
         }
 
         function createSound(type) {
@@ -250,11 +292,10 @@
                 osc.frequency.linearRampToValueAtTime(110, audioCtx.currentTime + 0.2);
                 master.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 osc.connect(master); osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-            } else if (type === 'cheer') { // 歡呼 + 煙火
+            } else if (type === 'cheer') {
                 for(let i=0; i<15; i++) {
                     const osc = audioCtx.createOscillator();
                     const g = audioCtx.createGain();
-                    osc.type = 'sine';
                     osc.frequency.setValueAtTime(400 + Math.random()*600, audioCtx.currentTime + i*0.1);
                     g.gain.setValueAtTime(0, audioCtx.currentTime + i*0.1);
                     g.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + i*0.1 + 0.05);
@@ -262,7 +303,7 @@
                     osc.connect(g); g.connect(master);
                     osc.start(audioCtx.currentTime + i*0.1); osc.stop(audioCtx.currentTime + i*0.1 + 0.3);
                 }
-            } else if (type === 'clap-heavy') { // 大聲拍手
+            } else if (type === 'clap-heavy') {
                 for(let i=0; i<30; i++) {
                     const noise = audioCtx.createBufferSource();
                     const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
@@ -275,7 +316,7 @@
                     noise.connect(g); g.connect(master);
                     noise.start(audioCtx.currentTime + Math.random()*1.5);
                 }
-            } else if (type === 'clap-light') { // 小聲拍手
+            } else if (type === 'clap-light') {
                 for(let i=0; i<10; i++) {
                     const noise = audioCtx.createBufferSource();
                     const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
@@ -288,40 +329,34 @@
                     noise.connect(g); g.connect(master);
                     noise.start(audioCtx.currentTime + Math.random()*1);
                 }
-            } else if (type === 'tick') { // 滴答聲
+            } else if (type === 'tick') {
                 const osc = audioCtx.createOscillator();
-                osc.type = 'square';
                 osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
                 master.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 master.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.02);
                 osc.connect(master); osc.start(); osc.stop(audioCtx.currentTime + 0.02);
-            } else if (type === 'sigh') { // 呼一聲
+            } else if (type === 'sigh') {
                 const noise = audioCtx.createBufferSource();
                 const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.5, audioCtx.sampleRate);
                 const data = buffer.getChannelData(0);
                 for(let j=0; j<data.length; j++) data[j] = Math.random()*2 - 1;
                 noise.buffer = buffer;
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(2000, audioCtx.currentTime);
-                filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
                 const g = audioCtx.createGain();
                 g.gain.setValueAtTime(0.1, audioCtx.currentTime);
                 g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-                noise.connect(filter); filter.connect(g); g.connect(master);
+                noise.connect(g); g.connect(master);
                 noise.start();
-            } else if (type === 'fail') { // 失敗音
+            } else if (type === 'fail') {
                 const osc = audioCtx.createOscillator();
-                osc.type = 'triangle';
                 osc.frequency.setValueAtTime(150, audioCtx.currentTime);
                 osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.5);
                 master.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                master.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
                 osc.connect(master); osc.start(); osc.stop(audioCtx.currentTime + 0.5);
             }
         }
 
         function startGame() {
+            if (availableIndices.length < 10) availableIndices = Array.from(fullLibrary.keys());
             const indices = shuffle([...availableIndices]).slice(0, 10);
             gameQuestions = indices.map(i => fullLibrary[i]);
             availableIndices = availableIndices.filter(i => !indices.includes(i));
@@ -346,7 +381,7 @@
             container.innerHTML = '';
             opts.forEach((o, i) => {
                 const btn = document.createElement('button');
-                btn.className = "option-btn w-full p-4 text-left bg-white border-2 border-slate-200 rounded-2xl text-slate-700 font-bold flex items-center shadow-sm";
+                btn.className = "option-btn w-full p-4 text-left bg-white border-2 border-slate-200 rounded-2xl text-slate-700 font-bold flex items-center shadow-sm hover:border-blue-300";
                 btn.innerHTML = `<span class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mr-4 text-xs font-black text-slate-400">${i+1}</span>${o.t}`;
                 btn.onclick = () => check(btn, o.c);
                 container.appendChild(btn);
@@ -365,9 +400,8 @@
             let i = 0;
             const speakNext = () => {
                 if (i >= queue.length || !isAnswering) return;
-                const u = new SpeechSynthesisUtterance(queue[i++]);
-                u.lang = 'zh-TW'; u.voice = voice; u.rate = 1.1;
-                u.onend = () => setTimeout(speakNext, 200);
+                const u = createUtterance(queue[i++]);
+                u.onend = () => setTimeout(speakNext, 150);
                 window.speechSynthesis.speak(u);
             };
             speakNext();
@@ -411,68 +445,39 @@
             let emoji = "🏅";
             
             if (score === 100) {
-                comment = "大滿貫！你真是絕世聰明！";
-                emoji = "👑";
-                celebrate100();
+                comment = "大滿貫！你真是絕世聰明！"; emoji = "👑"; celebrate100();
             } else if (score >= 90) {
-                comment = "太強了！差點就滿分！";
-                emoji = "🔥";
-                createSound('clap-heavy');
+                comment = "太強了！差點就滿分！"; emoji = "🔥"; createSound('clap-heavy');
             } else if (score >= 80) {
-                comment = "你真的好棒棒！";
-                emoji = "✨";
-                createSound('clap-light');
+                comment = "你真的好棒棒！"; emoji = "✨"; createSound('clap-light');
             } else if (score >= 70) {
-                comment = "再加油吧，下次會更好！";
-                emoji = "💪";
-                createSound('tick');
+                comment = "再加油吧，下次會更好！"; emoji = "💪"; createSound('tick');
             } else if (score >= 60) {
-                comment = "還好有及格，好險！";
-                emoji = "😅";
-                createSound('sigh');
-            } else if (score >= 40) {
-                comment = "哎呀，差一點點就及格了！";
-                emoji = "🤔";
-                createSound('fail');
-            } else if (score >= 20) {
-                comment = "看來你需要多聽點冷笑話！";
-                emoji = "❄️";
-                createSound('fail');
+                comment = "還好有及格，好險！"; emoji = "😅"; createSound('sigh');
             } else {
-                comment = "這是...隱藏版實力嗎？";
-                emoji = "👻";
-                createSound('fail');
+                comment = "加油加油！多轉一下腦袋吧！"; emoji = "👻"; createSound('fail');
             }
 
             document.getElementById('result-comment').innerText = comment;
             document.getElementById('result-emoji').innerText = emoji;
             
-            // 語音評分
             setTimeout(() => {
-                const u = new SpeechSynthesisUtterance(comment);
-                u.lang = 'zh-TW'; u.voice = voice;
+                const u = createUtterance(comment);
                 window.speechSynthesis.speak(u);
-            }, 500);
-
-            if (availableIndices.length < 10) document.getElementById('next-btn').innerText = "最後衝刺 / 重置題庫";
-            initPool();
+            }, 600);
         }
 
         function celebrate100() {
             createSound('cheer');
-            // 撒花與亮片
             const count = 200;
             const defaults = { origin: { y: 0.7 } };
-            function fire(particleRatio, opts) {
-                confetti({ ...defaults, ...opts, particleCount: Math.floor(count * particleRatio) });
-            }
+            function fire(particleRatio, opts) { confetti({ ...defaults, ...opts, particleCount: Math.floor(count * particleRatio) }); }
             fire(0.25, { spread: 26, startVelocity: 55 });
             fire(0.2, { spread: 60 });
             fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
             fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
             fire(0.1, { spread: 120, startVelocity: 45 });
 
-            // 模擬煙火
             const overlay = document.getElementById('firework-canvas');
             overlay.style.display = 'block';
             let flashes = 0;
@@ -486,7 +491,7 @@
 
         function restartGame() { startGame(); }
         function shuffle(arr) { return arr.sort(() => Math.random() - 0.5); }
-        window.onload = () => { initSpeech(); initPool(); };
+        window.onload = () => { initSpeech(); availableIndices = Array.from(fullLibrary.keys()); document.getElementById('pool-info').innerText = `題庫剩餘: ${availableIndices.length} 題`; };
     </script>
 </body>
 </html>
